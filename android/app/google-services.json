@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "604145189306",
+    "project_id": "mlafaty-share",
+    "storage_bucket": "mlafaty-share.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:604145189306:android:ff0b22bd05b4202b4fdd83",
+        "android_client_info": {
+          "package_name": "com.example.mlfaty_share"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "604145189306-1qdle9vj1tghs3e9h2crsuq11ld4535j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mlfaty_share",
+            "certificate_hash": "d19954b9219f58a210a235fbba3c5113f6462bcb"
+          }
+        },
+        {
+          "client_id": "604145189306-e59m1e5t68nr4d1nu2bvfee15ntjhql8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnvoeDKpufTKyzTenYdLg_MlkRPFo_5hs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "604145189306-e59m1e5t68nr4d1nu2bvfee15ntjhql8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
