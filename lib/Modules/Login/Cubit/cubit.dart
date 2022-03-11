@@ -33,6 +33,7 @@ class LoginCubit extends Cubit<LogiStates> {
 
     FirebaseAuth.instance.signInWithCredential(credential).then((value) {
       crateUser(email: value.user!.email, name:value.user!.displayName,image: value.user!.photoURL,uId: value.user!.uid );
+      uId = value.user!.uid;
       emit(LoginGoogleScssesState(value.user!.uid));
     }).catchError((error){
       emit(LoginGoogleErrorState(error));

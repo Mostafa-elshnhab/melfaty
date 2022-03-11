@@ -13,3 +13,4 @@ void logout(context) {
 
 String? uId;
 String? path;
+var checkBoxes = [];

@@ -5,11 +5,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-
-
 import 'Data/Cash/cashHelper.dart';
+import 'Data/Remot/Api/dio_helper.dart';
 import 'Home/home_layout.dart';
 import 'Modules/Login/login.dart';
 import 'Shared/Cubit/AppCubit/cubit.dart';
@@ -18,10 +18,35 @@ import 'Shared/Cubit/cubit_observe.dart';
 import 'Shared/componants/reusable/constants.dart';
 import 'Style/Themes/themes.dart';
 
+const AndroidNotificationChannel channel = AndroidNotificationChannel(
+  'high_importance_channel', // id
+  'High Importance Notifications', // title
+  importance: Importance.high,
+);
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // If you're going to use other Firebase services in the background, such as Firestore,
+  // make sure you call `initializeApp` before using other Firebase services.
+  await Firebase.initializeApp();
+  print('Handling a background message ${message.messageId}');
+}
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  DioHelper.init();
   var token = FirebaseMessaging.instance.getToken();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
   print(token);
   FirebaseMessaging.onMessage.listen((event) {
     print(event.data.toString());
@@ -29,6 +54,8 @@ void main() async {
   Bloc.observer = MyBlocObserver();
   await CashHelper.init();
   uId = CashHelper.getuId('uId') ?? '';
+//String checkBoxes= CashHelper.getuId('checkBoxes')??[];
+print(checkBoxes);
   Widget startWidget;
 
   if (uId != '') {
@@ -39,6 +66,8 @@ void main() async {
   runApp(MyApp(startWidget));
 }
 
+
+
 class MyApp extends StatefulWidget {
   // This widget is the root of your application.
 
@@ -47,71 +76,74 @@ class MyApp extends StatefulWidget {
       this.startWidget,
       );
 
-
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  late StreamSubscription _intentDataStreamSubscription;
-  List<SharedMediaFile>? _sharedFiles;
-
-  String? _sharedText;
+  @override
   void initState() {
     super.initState();
+    var initializationSettingsAndroid =
+    new AndroidInitializationSettings('ic_launcher');
+    var initialzationSettingsAndroid =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+    var initializationSettings =
+    InitializationSettings(android: initialzationSettingsAndroid);
+    flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-    // For sharing images coming from outside the app while the app is in the memory
-    _intentDataStreamSubscription = ReceiveSharingIntent.getMediaStream()
-        .listen((List<SharedMediaFile> value) {
-      setState(() {
-        _sharedFiles = value;
-        path=(_sharedFiles?.map((f) => f.path).join(",") ?? "");
-        print("Shared1:" + (_sharedFiles?.map((f) => f.path).join(",") ?? ""));
-      });
-    }, onError: (err) {
-      print("getIntentDataStream error: $err");
+    FirebaseMessaging.instance.subscribeToTopic('all');
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+            notification.hashCode,
+            notification.title,
+            notification.body,
+            NotificationDetails(
+              android: AndroidNotificationDetails(
+                channel.id,
+                channel.name,
+
+                color: Colors.blue,
+                // TODO add a proper drawable resource to android, for now using
+                //      one that already exists in example app.
+                icon: "@mipmap/ic_launcher",
+              ),
+            ));
+      }
     });
 
-    // For sharing images coming from outside the app while the app is closed
-    ReceiveSharingIntent.getInitialMedia().then((List<SharedMediaFile> value) {
-      setState(() {
-        _sharedFiles = value;
-        path=(_sharedFiles?.map((f) => f.path).join(",") ?? "");
-        print("Shared2:" + (_sharedFiles?.map((f) => f.path).join(",") ?? ""));
-      });
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+      if (notification != null && android != null) {
+        showDialog(
+           context: context,
+            builder: (_) {
+              return AlertDialog(
+                title: Text(notification.title!),
+                content: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [Text(notification.body!)],
+                  ),
+                ),
+              );
+            });
+      }
     });
 
-    // For sharing or opening urls/text coming from outside the app while the app is in the memory
-    _intentDataStreamSubscription =
-        ReceiveSharingIntent.getTextStream().listen((String value) {
-          setState(() {
-            _sharedText = value;
-            path=(_sharedText);
-            print("Shared3: $_sharedText");
-          });
-        }, onError: (err) {
-          print("getLinkStream error: $err");
-        });
-
-    // For sharing or opening urls/text coming from outside the app while the app is closed
-    ReceiveSharingIntent.getInitialText().then((String? value) {
-      setState(() {
-        _sharedText = value;
-        path=(_sharedText);
-        print("Shared4: $_sharedText");
-      });
-    });
-
-
-
+    getToken();
   }
 
-  @override
-  void dispose() {
-    _intentDataStreamSubscription.cancel();
-    super.dispose();
-  }
 
+  String? token;
+  getToken() async {
+    token = await FirebaseMessaging.instance.getToken();
+  }
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
@@ -119,14 +151,12 @@ class _MyAppState extends State<MyApp> {
       builder: ()=> MultiBlocProvider(
         providers: [
           BlocProvider  (
-              create: (context) => AppCubit()
-                ..getData()
-
-                ..getMode())
+              create: (context) => AppCubit()..loadImages()..getData(),
+          ),
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Social App',
+          title: 'Mlfaty App',
           darkTheme: darkTheme,
           theme: lightTheme,
           themeMode: ThemeMode.light,
@@ -137,3 +167,4 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
+
